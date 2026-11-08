@@ -1,0 +1,7 @@
+{
+  "401_missing_or_invalid_token": { "detail": "Not authenticated" },
+  "403_other_users_data": { "detail": "Token does not belong to this GitHub user" },
+  "404_github_user_not_found": { "detail": "GitHub user not found" },
+  "503_github_rate_limited": { "detail": "GitHub rate limit, resets at 2026-11-07T23:00:00Z" },
+  "503_gemini_unavailable": { "detail": "Skill analysis is unavailable, try again shortly" }
+}
