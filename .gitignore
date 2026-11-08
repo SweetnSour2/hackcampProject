@@ -153,6 +153,8 @@ activemq-data/
 .env
 .envrc
 .venv
+node_modules/
+.DS_Store
 env/
 venv/
 ENV/
