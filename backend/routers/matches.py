@@ -23,4 +23,4 @@ async def matches(
     except GitHubRateLimited as e:
         raise HTTPException(status_code=503, detail=str(e))
     except RuntimeError as e:
-        raise HTTPException(status_code=503, detail="Skill analysis is unavailable, try again shortly") from e
+        raise HTTPException(status_code=503, detail=str(e)) from e

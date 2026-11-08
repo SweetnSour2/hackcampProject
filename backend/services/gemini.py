@@ -1,3 +1,4 @@
+import asyncio
 from functools import lru_cache
 from typing import TypeVar
 
@@ -136,12 +137,18 @@ async def _generate(contents: str, schema: type[T], system: str) -> T:
     last_error: Exception | None = None
     for _ in range(2):
         try:
-            resp = await get_client().aio.models.generate_content(
-                model=get_config().GEMINI_MODEL,
-                contents=contents,
-                config=config,
+            resp = await asyncio.wait_for(
+                get_client().aio.models.generate_content(
+                    model=get_config().GEMINI_MODEL,
+                    contents=contents,
+                    config=config,
+                ),
+                timeout=45,
             )
         except genai.errors.APIError as e:
+            last_error = e
+            continue
+        except TimeoutError as e:
             last_error = e
             continue
         if isinstance(resp.parsed, schema):

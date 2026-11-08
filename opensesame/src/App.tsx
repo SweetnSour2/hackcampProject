@@ -1093,11 +1093,13 @@ function Matches({
   saved,
   toggleSave,
   openDetail,
+  status,
 }: {
   repos: Repository[];
   saved: string[];
   toggleSave: (id: string) => void;
   openDetail: (r: Repository) => void;
+  status?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("Compatibility");
@@ -1113,7 +1115,10 @@ function Matches({
       <PageHeader
         eyebrow="PERSONALIZED DISCOVERY"
         title="Your matches"
-        copy="Transparent recommendations based on your selected skills, interests, and experience."
+        copy={
+          status ||
+          "Transparent recommendations based on your selected skills, interests, and experience."
+        }
       />
       <div className="list-toolbar">
         <div className="filter-search wide">
@@ -1499,16 +1504,18 @@ function ContributorsTab({ repo }: { repo: Repository }) {
 function ContributePage({
   repo,
   username,
+  status,
 }: {
-  repo: Repository;
+  repo: Repository | null;
   username: string;
+  status?: string | null;
 }) {
   const [done, setDone] = useState([0]);
   const [walkthrough, setWalkthrough] = useState<string | null>(null);
   const [coachError, setCoachError] = useState<string | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
-  const issue = repo.issues[0];
-  const liveRepo = /^\d+$/.test(repo.id);
+  const issue = repo?.issues[0];
+  const liveRepo = Boolean(repo && /^\d+$/.test(repo.id));
   useEffect(() => {
     if (!issue || !username || !liveRepo) return;
     let cancelled = false;
@@ -1516,7 +1523,7 @@ function ContributePage({
     setCoachError(null);
     fetchCoach({
       username,
-      repo_full_name: `${repo.owner}/${repo.name}`,
+      repo_full_name: `${repo!.owner}/${repo!.name}`,
       issue_number: issue.number,
     })
       .then((data) => {
@@ -1531,7 +1538,7 @@ function ContributePage({
     return () => {
       cancelled = true;
     };
-  }, [username, liveRepo, repo.owner, repo.name, issue?.number]);
+  }, [username, liveRepo, repo?.owner, repo?.name, issue?.number]);
   const steps = walkthrough
     ? walkthrough
         .split(/^## /m)
@@ -1564,13 +1571,13 @@ function ContributePage({
       ];
   const toggle = (i: number) =>
     setDone((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]));
-  if (!issue) {
+  if (!repo || !issue) {
     return (
       <main className="content-page contribute-page">
         <PageHeader
           eyebrow="CONTRIBUTION WORKSPACE"
-          title="Pick a match first"
-          copy="Open a repository from Matches, then come back here for the walkthrough."
+          title={status ? "Coach is waiting" : "Pick a match first"}
+          copy={status || "Open a repository from Matches, then come back here for the walkthrough."}
         />
       </main>
     );
@@ -1683,10 +1690,12 @@ function ProfilePage({
   username,
   avatar,
   skills,
+  status,
 }: {
   username: string;
   avatar: string;
   skills: Skill[];
+  status?: string | null;
 }) {
   return (
     <main className="content-page">
@@ -1715,9 +1724,13 @@ function ProfilePage({
           <div className="profile-divider" />
           <span className="section-label">SKILL ANALYSIS</span>
           <p className="summary-copy">
-            {skills.length
-              ? skills.map((s) => `${s.name} (${s.proficiency}/5): ${s.description}`).join(" ")
-              : "Sign in to analyze your GitHub profile."}
+            {status
+              ? status
+              : skills.length
+                ? skills
+                    .map((s) => `${s.name} (${s.proficiency}/5): ${s.description}`)
+                    .join(" ")
+                : "Sign in to analyze your GitHub profile."}
           </p>
         </section>
         <aside className="profile-details">
@@ -1764,7 +1777,7 @@ export default function App() {
     user,
   } = useAuth0();
   const [page, setPage] = useState<Page>("landing");
-  const [repos, setRepos] = useState<Repository[]>(demoRepos);
+  const [repos, setRepos] = useState<Repository[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [selected, setSelected] = useState<Repository>(demoRepos[0]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -1793,11 +1806,12 @@ export default function App() {
     let cancelled = false;
     setMatchesLoading(true);
     setLoadError(null);
+    setRepos([]);
     fetchMatches(githubName)
       .then((data) => {
         if (cancelled) return;
         const mapped = data.matches.map(toRepository);
-        setRepos(mapped.length ? mapped : demoRepos);
+        setRepos(mapped);
         setSkills(data.skills);
         if (mapped[0]) setSelected(mapped[0]);
       })
@@ -1823,6 +1837,13 @@ export default function App() {
   };
   const toggleSave = (id: string) =>
     setSaved((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const visibleRepos = isAuthenticated ? repos : demoRepos;
+  const visibleSelected = isAuthenticated
+    ? (repos.find((repo) => repo.id === selected.id) ?? repos[0] ?? null)
+    : selected;
+  const matchStatus = matchesLoading
+    ? "Scoring your GitHub profile…"
+    : loadError;
 
   if (isLoading) {
     return (
@@ -1836,7 +1857,9 @@ export default function App() {
   if (page === "landing")
     return (
       <Landing
-        onLogin={() => loginWithRedirect()}
+        onLogin={() =>
+          loginWithRedirect({ authorizationParams: { connection: "github" } })
+        }
         onExplore={() => navigate("explore")}
         authError={error?.message}
       />
@@ -1849,14 +1872,14 @@ export default function App() {
       navigate={navigate}
       username={username}
       avatar={avatar}
-      matchCount={repos.length}
-      onLogout={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+      matchCount={visibleRepos.length}
+      onLogout={() => logout({ logoutParams: { returnTo: `${window.location.origin}/` } })}
     >
       {page === "home" && (
         <HomePage
           navigate={navigate}
           openDetail={openDetail}
-          repos={repos}
+          repos={visibleRepos}
           username={username}
           avatar={avatar}
           skills={skills}
@@ -1864,28 +1887,62 @@ export default function App() {
           error={loadError}
         />
       )}
-      {page === "explore" && (
-        <Explore
-          repos={repos}
-          selected={selected}
-          selectRepo={setSelected}
+      {page === "explore" &&
+        (visibleSelected ? (
+          <Explore
+            repos={visibleRepos}
+            selected={visibleSelected}
+            selectRepo={setSelected}
+            openDetail={openDetail}
+          />
+        ) : (
+          <main className="content-page">
+            <PageHeader
+              eyebrow="DISCOVERY"
+              title="Matches are still loading"
+              copy={matchStatus || "No scored repositories yet."}
+            />
+          </main>
+        ))}
+      {page === "matches" && (
+        <Matches
+          repos={visibleRepos}
+          saved={saved}
+          toggleSave={toggleSave}
+          openDetail={openDetail}
+          status={isAuthenticated ? matchStatus : null}
+        />
+      )}
+      {page === "saved" && (
+        <SavedPage
+          repos={visibleRepos}
+          saved={saved}
+          toggleSave={toggleSave}
           openDetail={openDetail}
         />
       )}
-      {page === "matches" && (
-        <Matches repos={repos} saved={saved} toggleSave={toggleSave} openDetail={openDetail} />
-      )}
-      {page === "saved" && (
-        <SavedPage repos={repos} saved={saved} toggleSave={toggleSave} openDetail={openDetail} />
-      )}
-      {page === "detail" && (
-        <DetailPage repo={selected} saved={saved} toggleSave={toggleSave} navigate={navigate} />
+      {page === "detail" && visibleSelected && (
+        <DetailPage
+          repo={visibleSelected}
+          saved={saved}
+          toggleSave={toggleSave}
+          navigate={navigate}
+        />
       )}
       {page === "contribute" && (
-        <ContributePage repo={selected} username={githubName || ""} />
+        <ContributePage
+          repo={visibleSelected}
+          username={githubName || ""}
+          status={isAuthenticated ? matchStatus : null}
+        />
       )}
       {page === "profile" && (
-        <ProfilePage username={username} avatar={avatar} skills={skills} />
+        <ProfilePage
+          username={username}
+          avatar={avatar}
+          skills={skills}
+          status={isAuthenticated ? matchStatus : null}
+        />
       )}
     </Shell>
   );
