@@ -1557,7 +1557,7 @@ function ContributePage({
         ],
         [
           "Read contribution guidelines",
-          `Open ${repo.owner}/${repo.name}’s contribution guide before changing code.`,
+          `Open ${repo?.owner ?? "the repo"}/${repo?.name ?? "project"}’s contribution guide before changing code.`,
         ],
         [
           "Set up the repository",

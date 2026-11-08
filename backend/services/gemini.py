@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from functools import lru_cache
 from typing import TypeVar
 
@@ -10,6 +11,8 @@ from config import get_config
 from schemas import CoachDraft, SkillAnalysis
 
 T = TypeVar("T", bound=BaseModel)
+logger = logging.getLogger(__name__)
+FALLBACK_MODEL = "gemini-3.5-flash"
 
 SYSTEM_PROMPT = """
 Your role is to score a student's OBSERVED GitHub work, do not coach or give advice.
@@ -134,26 +137,41 @@ async def _generate(contents: str, schema: type[T], system: str) -> T:
         response_schema=schema,
         temperature=0.2,
     )
+    primary = get_config().GEMINI_MODEL
+    models = [primary] if primary == FALLBACK_MODEL else [primary, FALLBACK_MODEL]
     last_error: Exception | None = None
-    for _ in range(2):
-        try:
-            resp = await asyncio.wait_for(
-                get_client().aio.models.generate_content(
-                    model=get_config().GEMINI_MODEL,
-                    contents=contents,
-                    config=config,
-                ),
-                timeout=45,
-            )
-        except genai.errors.APIError as e:
-            last_error = e
-            continue
-        except TimeoutError as e:
-            last_error = e
-            continue
-        if isinstance(resp.parsed, schema):
-            return resp.parsed
-        last_error = ValueError(f"Gemini returned no parsed {schema.__name__}")
+    for index, model in enumerate(models):
+        # One short try on the primary so an overloaded model does not stall the demo.
+        attempts = 1 if index == 0 and len(models) > 1 else 2
+        timeout = 15 if index == 0 and len(models) > 1 else 45
+        for _ in range(attempts):
+            try:
+                resp = await asyncio.wait_for(
+                    get_client().aio.models.generate_content(
+                        model=model,
+                        contents=contents,
+                        config=config,
+                    ),
+                    timeout=timeout,
+                )
+            except genai.errors.APIError as e:
+                last_error = e
+                logger.warning("Gemini %s failed: %s", model, e)
+                if index == 0 and len(models) > 1:
+                    break
+                continue
+            except TimeoutError as e:
+                last_error = e
+                logger.warning("Gemini %s timed out after %ss", model, timeout)
+                if index == 0 and len(models) > 1:
+                    break
+                continue
+            if isinstance(resp.parsed, schema):
+                return resp.parsed
+            last_error = ValueError(f"Gemini returned no parsed {schema.__name__}")
+            logger.warning("Gemini %s returned no parsed %s", model, schema.__name__)
+            if index == 0 and len(models) > 1:
+                break
     raise RuntimeError(f"Gemini returned no valid {schema.__name__}: {last_error}")
 
 
