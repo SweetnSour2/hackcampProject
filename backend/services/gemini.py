@@ -1,10 +1,14 @@
 from functools import lru_cache
+from typing import TypeVar
 
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 
 from config import get_config
-from schemas import SkillAnalysis
+from schemas import CoachDraft, SkillAnalysis
+
+T = TypeVar("T", bound=BaseModel)
 
 SYSTEM_PROMPT = """
 Your role is to score a student's OBSERVED GitHub work, do not coach or give advice.
@@ -59,17 +63,74 @@ Output:
 }
 """
 
+COACH_SYSTEM_PROMPT = """
+Your role is to walk a first-time contributor through ONE GitHub issue. Do not write the fix.
+
+Follow these rules and do not deviate:
+- Only mention files present in the facts JSON
+- Hints, not the patch; no full code
+- walkthrough_md must include: Set up, Files to look at, Approach (hints), PR checklist
+- If docs mention AI-assisted PRs, set ai_policy_note; else null
+- Keep walkthrough_md concise, do not be overtly verbose
+- Do not invent files, commands, or project structure that are not in the facts
+
+Example 1: Docs issue with real files
+
+Input:
+{
+  "skills": [{"name": "Python", "proficiency": 4}],
+  "issue": {
+    "title": "Docs: add example for --verbose flag",
+    "body": "The README doesn't show how --verbose changes the output.",
+    "labels": ["good first issue", "documentation"],
+    "comments": [{"author": "maintainer", "association": "MEMBER", "body": "A short example in docs/cli.md is enough."}]
+  },
+  "files": {
+    "README.md": "Install with pip install example-cli. See docs/cli.md.",
+    "CONTRIBUTING.md": "Fork, branch, open a PR. Tests: pytest."
+  }
+}
+
+Output:
+{
+  "walkthrough_md": "## Set up\\nFork the repo, clone your fork, and install deps from the README (pip).\\n\\n## Files to look at\\n- README.md: install and current usage\\n- CONTRIBUTING.md: how they want PRs\\n\\n## Approach (hints)\\nFind where flags are documented. Add a short --verbose example next to existing usage. Match the tone of nearby docs.\\n\\n## PR checklist\\n- [ ] Example matches actual --verbose behavior\\n- [ ] CONTRIBUTING.md steps followed\\n- [ ] PR describes the doc change in one sentence",
+  "ai_policy_note": null
+}
+
+Example 2: Thin issue, little context
+
+Input:
+{
+  "skills": [{"name": "HTML", "proficiency": 2}],
+  "issue": {
+    "title": "Fix typo in homepage heading",
+    "body": "There's a typo.",
+    "labels": ["good first issue"],
+    "comments": []
+  },
+  "files": {
+    "README.md": "A small static site. Open index.html."
+  }
+}
+
+Output:
+{
+  "walkthrough_md": "## Set up\\nClone the repo. Open it as a static site; README says index.html is the entry.\\n\\n## Files to look at\\n- README.md: how the site is run\\n\\n## Approach (hints)\\nSearch the heading text from the issue. Fix the typo only. Don't restyle the page.\\n\\n## PR checklist\\n- [ ] Only the typo changed\\n- [ ] You quote the before/after in the PR body",
+  "ai_policy_note": null
+}
+"""
+
 
 @lru_cache
 def get_client() -> genai.Client:
     return genai.Client(api_key=get_config().GEMINI_API_KEY)
 
 
-async def generate_json(contents: str) -> SkillAnalysis:
+async def _generate(contents: str, schema: type[T], system: str) -> T:
     config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_PROMPT,
+        system_instruction=system,
         response_mime_type="application/json",
-        response_schema=SkillAnalysis,
+        response_schema=schema,
         temperature=0.2,
     )
     last_error: Exception | None = None
@@ -83,7 +144,15 @@ async def generate_json(contents: str) -> SkillAnalysis:
         except genai.errors.APIError as e:
             last_error = e
             continue
-        if isinstance(resp.parsed, SkillAnalysis):
+        if isinstance(resp.parsed, schema):
             return resp.parsed
-        last_error = ValueError("Gemini returned no parsed SkillAnalysis")
-    raise RuntimeError(f"Gemini returned no valid SkillAnalysis: {last_error}")
+        last_error = ValueError(f"Gemini returned no parsed {schema.__name__}")
+    raise RuntimeError(f"Gemini returned no valid {schema.__name__}: {last_error}")
+
+
+async def generate_json(contents: str) -> SkillAnalysis:
+    return await _generate(contents, SkillAnalysis, SYSTEM_PROMPT)
+
+
+async def generate_coach(contents: str) -> CoachDraft:
+    return await _generate(contents, CoachDraft, COACH_SYSTEM_PROMPT)

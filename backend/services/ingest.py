@@ -115,10 +115,13 @@ async def refresh_repos(session: AsyncSession, languages: list[str]) -> dict:
 
     repos_saved = issues_saved = issues_removed = 0
     by_language: dict[str, int] = {}
+    seen: set[int] = set()
 
     for language in languages:
         found = await github.search_repos(language, pushed_after)
-        candidates = [repo for repo in found if keep_repo(repo)]
+        candidates = [
+            repo for repo in found if keep_repo(repo) and repo["id"] not in seen
+        ]
         fetched = await asyncio.gather(*(_fetch(repo) for repo in candidates))
 
         saved_here = 0
@@ -140,6 +143,7 @@ async def refresh_repos(session: AsyncSession, languages: list[str]) -> dict:
                 )
             )
             saved_here += 1
+            seen.add(data["id"])
             issues_saved += saved
             issues_removed += removed
 

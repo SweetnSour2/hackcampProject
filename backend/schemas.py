@@ -79,3 +79,19 @@ class MatchesResponse(BaseModel):
     user: UserOut
     skills: list[SkillOut]
     matches: list[MatchOut]
+
+
+class CoachRequest(BaseModel):
+    username: str
+    repo_full_name: str
+    issue_number: int = Field(ge=1)
+
+
+class CoachDraft(BaseModel):
+    walkthrough_md: str
+    ai_policy_note: str | None = None
+
+
+class CoachOut(CoachDraft):
+    files_read: list[str]
+    tool_calls: int

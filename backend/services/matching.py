@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from models import Repo, Skill, User
+from models import Repo, Skill
 from schemas import (
     IssueOut,
     MatchOut,
@@ -14,6 +14,7 @@ from schemas import (
     SkillOut,
     UserOut,
 )
+from services.activity import ZERO, activity_for_repos, match_reason
 from services.analysis import ensure_skills
 from services.profile import get_or_create_user
 from services.tech import normalize
@@ -140,19 +141,22 @@ async def get_matches(
     user = await get_or_create_user(session, username)
     skills = await ensure_skills(session, user, force=reanalyze)
     ranked = await rank_repos(session, skills, limit)
-    matches = [
-        MatchOut(
-            repo=_repo_out(repo),
-            activity=None,
-            score=score,
-            score_breakdown=breakdown,
-            matched_skills=matched,
-            learn_skills=learn_skills(repo, matched),
-            reason=None,
-            issues=[_issue_out(issue) for issue in repo.issues],
+    activity_map = await activity_for_repos(session, [repo.id for _, _, _, repo in ranked])
+    matches = []
+    for score, breakdown, matched, repo in ranked:
+        activity = activity_map.get(repo.id, ZERO)
+        matches.append(
+            MatchOut(
+                repo=_repo_out(repo),
+                activity=activity,
+                score=score,
+                score_breakdown=breakdown,
+                matched_skills=matched,
+                learn_skills=learn_skills(repo, matched),
+                reason=match_reason(matched, repo, activity),
+                issues=[_issue_out(issue) for issue in repo.issues],
+            )
         )
-        for score, breakdown, matched, repo in ranked
-    ]
     return MatchesResponse(
         user=UserOut(
             username=user.username,
