@@ -1,0 +1,28 @@
+{
+  "parsed_resume": {
+    "projects": [
+      {
+        "title": "Project A",
+        "description": "Course scheduling app with a REST API and a Postgres database",
+        "technologies": ["Python", "FastAPI", "PostgreSQL"]
+      }
+    ],
+    "listed_skills": ["Java", "Python", "SQL", "TypeScript"]
+  },
+  "skills": [
+    {
+      "name": "Python",
+      "proficiency": 4,
+      "description": "Main language across 9 recent repos, mostly FastAPI backends",
+      "source": "both",
+      "edited_by_user": false
+    },
+    {
+      "name": "Java",
+      "proficiency": 1,
+      "description": "Listed on resume only, no projects",
+      "source": "resume",
+      "edited_by_user": false
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "solved": 3,
+  "prs": [
+    {
+      "repo_full_name": "example-org/example-repo",
+      "number": 455,
+      "title": "Fix typo in CLI help",
+      "html_url": "https://github.com/example-org/example-repo/pull/455",
+      "merged_at": "2026-10-30T17:40:00Z"
+    }
+  ]
+}

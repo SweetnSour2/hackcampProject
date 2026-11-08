@@ -1,0 +1,11 @@
+{
+  "fit": "good",
+  "summary": "Add an accessible name to icon-only buttons so screen readers announce what they do.",
+  "your_skills": ["TypeScript", "React"],
+  "required_skills": [
+    { "name": "React", "have": true },
+    { "name": "TypeScript", "have": true },
+    { "name": "Accessibility", "have": false },
+    { "name": "Testing conventions", "have": false }
+  ]
+}

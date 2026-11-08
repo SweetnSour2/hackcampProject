@@ -1,0 +1,150 @@
+{
+  "user": {
+    "username": "someuser",
+    "avatar_url": "https://avatars.githubusercontent.com/u/123?v=4",
+    "skills_updated_at": "2026-11-07T22:30:00Z"
+  },
+  "skills": [
+    {
+      "name": "Python",
+      "proficiency": 4,
+      "description": "Main language across 9 recent repos, mostly FastAPI backends",
+      "source": "both",
+      "edited_by_user": false
+    },
+    {
+      "name": "TypeScript",
+      "proficiency": 2,
+      "description": "Used in 2 frontends",
+      "source": "github",
+      "edited_by_user": false
+    },
+    {
+      "name": "FastAPI",
+      "proficiency": 4,
+      "description": "Backend framework in most recent projects",
+      "source": "both",
+      "edited_by_user": false
+    },
+    {
+      "name": "React",
+      "proficiency": 2,
+      "description": "Used in 2 frontends",
+      "source": "github",
+      "edited_by_user": false
+    }
+  ],
+  "matches": [
+    {
+      "repo": {
+        "id": 123456789,
+        "full_name": "example-org/example-repo",
+        "html_url": "https://github.com/example-org/example-repo",
+        "description": "A small Python CLI for ...",
+        "language": "Python",
+        "topics": ["python", "fastapi", "cli"],
+        "stars": 2400,
+        "pushed_at": "2026-11-05T18:22:10Z",
+        "location": { "name": "Berlin, Germany", "lat": 52.52, "lng": 13.4 }
+      },
+      "activity": {
+        "new_beginner_issues_24h": 2,
+        "beginner_issues_picked_up_7d": 5,
+        "stars_gained_7d": 31
+      },
+      "score": 0.82,
+      "score_breakdown": { "skill_fit": 0.9, "beginner": 0.8, "activity": 1.0 },
+      "matched_skills": ["Python", "FastAPI"],
+      "level": "beginner",
+      "reason": "Uses FastAPI the way your projects do, and has 4 open beginner issues.",
+      "issues": [
+        {
+          "number": 412,
+          "title": "Docs: add example for --verbose flag",
+          "html_url": "https://github.com/example-org/example-repo/issues/412",
+          "labels": ["good first issue", "documentation"],
+          "comments": 3,
+          "created_at": "2026-10-20T09:12:00Z",
+          "body_preview": "The README doesn't show how --verbose changes the output. Add a short example to docs/cli.md showing the extra log lines."
+        },
+        {
+          "number": 398,
+          "title": "Add type hints to config loader",
+          "html_url": "https://github.com/example-org/example-repo/issues/398",
+          "labels": ["good first issue"],
+          "comments": 1,
+          "created_at": "2026-10-11T15:40:00Z",
+          "body_preview": "config/loader.py has no type hints. Add them and make mypy pass for that file."
+        }
+      ]
+    },
+    {
+      "repo": {
+        "id": 223456789,
+        "full_name": "another-org/ui-kit",
+        "html_url": "https://github.com/another-org/ui-kit",
+        "description": "Accessible React components",
+        "language": "TypeScript",
+        "topics": ["react", "typescript", "components"],
+        "stars": 5100,
+        "pushed_at": "2026-11-06T09:02:44Z",
+        "location": { "name": "San Francisco, CA", "lat": 37.77, "lng": -122.42 }
+      },
+      "activity": {
+        "new_beginner_issues_24h": 0,
+        "beginner_issues_picked_up_7d": 2,
+        "stars_gained_7d": 12
+      },
+      "score": 0.61,
+      "score_breakdown": { "skill_fit": 0.5, "beginner": 1.0, "activity": 1.0 },
+      "matched_skills": ["TypeScript", "React"],
+      "level": "intermediate",
+      "reason": "A good way to grow your React skills, with plenty of small component fixes.",
+      "issues": [
+        {
+          "number": 77,
+          "title": "Button: missing aria-label in icon-only variant",
+          "html_url": "https://github.com/another-org/ui-kit/issues/77",
+          "labels": ["good first issue", "a11y"],
+          "comments": 0,
+          "created_at": "2026-11-02T11:20:00Z",
+          "body_preview": "Icon-only buttons render without an accessible name, so screen readers announce just \"button\"."
+        }
+      ]
+    },
+    {
+      "repo": {
+        "id": 323456789,
+        "full_name": "data-tools/csv-wrangler",
+        "html_url": "https://github.com/data-tools/csv-wrangler",
+        "description": "Fast CSV cleaning utilities",
+        "language": "Python",
+        "topics": ["python", "csv", "data"],
+        "stars": 860,
+        "pushed_at": "2026-09-28T20:15:00Z",
+        "location": null
+      },
+      "activity": {
+        "new_beginner_issues_24h": 1,
+        "beginner_issues_picked_up_7d": 0,
+        "stars_gained_7d": 3
+      },
+      "score": 0.47,
+      "score_breakdown": { "skill_fit": 0.4, "beginner": 0.6, "activity": 0.5 },
+      "matched_skills": ["Python"],
+      "level": "beginner",
+      "reason": "Small Python codebase where your scripting experience transfers directly.",
+      "issues": [
+        {
+          "number": 15,
+          "title": "Handle empty header row",
+          "html_url": "https://github.com/data-tools/csv-wrangler/issues/15",
+          "labels": ["good first issue", "bug"],
+          "comments": 2,
+          "created_at": "2026-10-30T08:05:00Z",
+          "body_preview": ""
+        }
+      ]
+    }
+  ]
+}
