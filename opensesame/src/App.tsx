@@ -38,7 +38,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { languages, repositories as demoRepos, topics, type Repository } from "./data";
+import { repositories as demoRepos, type Repository } from "./data";
 import {
   fetchCoach,
   fetchMatches,
@@ -610,6 +610,36 @@ function PageHeader({
   );
 }
 
+function optionsFrom(repos: Repository[], pick: (repo: Repository) => string, all: string) {
+  return [all, ...Array.from(new Set(repos.map(pick).filter(Boolean))).sort()];
+}
+
+function passesCompatibility(match: number, filter: string) {
+  if (filter === "90% and above") return match >= 90;
+  if (filter === "80% and above") return match >= 80;
+  return true;
+}
+
+function starCount(stars: string) {
+  const value = stars.trim().toLowerCase();
+  if (value.endsWith("k")) return parseFloat(value) * 1000;
+  return parseFloat(value) || 0;
+}
+
+function activityRank(activity: string) {
+  const picked = activity.match(/(\d+) picked up/);
+  if (picked) return 10000 + Number(picked[1]);
+  const fresh = activity.match(/(\d+) new beginner/);
+  if (fresh) return 5000 + Number(fresh[1]);
+  const gained = activity.match(/\+(\d+) stars/);
+  if (gained) return 1000 + Number(gained[1]);
+  if (activity.includes("today")) return 100;
+  if (activity.includes("yesterday")) return 50;
+  const days = activity.match(/Pushed (\d+)d ago/);
+  if (days) return Math.max(0, 40 - Number(days[1]));
+  return 0;
+}
+
 function FilterSelect({
   value,
   options,
@@ -647,8 +677,11 @@ function Explore({
   const cameraTimerRef = useRef<number | null>(null);
   const size = useElementSize(wrapRef, { width: 760, height: 620 });
   const [globeReady, setGlobeReady] = useState(false);
+  const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("All languages");
   const [topic, setTopic] = useState("All topics");
+  const [difficulty, setDifficulty] = useState("Any difficulty");
+  const [compatibility, setCompatibility] = useState("Compatibility");
   const [view, setView] = useState<"globe" | "list">("globe");
   const material = useMemo(
     () =>
@@ -660,11 +693,21 @@ function Explore({
       }),
     [],
   );
-  const filtered = repos.filter(
-    (r) =>
-      (language === "All languages" || r.language === language) &&
-      (topic === "All topics" || r.topic === topic),
-  );
+  const languageOptions = optionsFrom(repos, (repo) => repo.language, "All languages");
+  const topicOptions = optionsFrom(repos, (repo) => repo.topic, "All topics");
+  const languageValue = languageOptions.includes(language) ? language : "All languages";
+  const topicValue = topicOptions.includes(topic) ? topic : "All topics";
+  const filtered = repos.filter((repo) => {
+    const haystack = `${repo.name} ${repo.owner} ${repo.language} ${repo.topic}`.toLowerCase();
+    return (
+      haystack.includes(query.toLowerCase()) &&
+      (languageValue === "All languages" || repo.language === languageValue) &&
+      (topicValue === "All topics" || repo.topic === topicValue) &&
+      (difficulty === "Any difficulty" || repo.difficulty === difficulty) &&
+      passesCompatibility(repo.match, compatibility)
+    );
+  });
+  const shown = filtered.find((repo) => repo.id === selected.id) ?? filtered[0] ?? selected;
   useEffect(() => () => material.dispose(), [material]);
 
   useEffect(() => {
@@ -675,7 +718,7 @@ function Explore({
     if (cameraTimerRef.current) window.clearTimeout(cameraTimerRef.current);
     const controls = globe.controls();
     controls.enabled = false;
-    globe.pointOfView({ lat: selected.lat, lng: selected.lng, altitude: 1.3 }, 1250);
+    globe.pointOfView({ lat: shown.lat, lng: shown.lng, altitude: 1.3 }, 1250);
     cameraTimerRef.current = window.setTimeout(() => {
       controls.enabled = true;
       cameraTimerRef.current = null;
@@ -685,7 +728,7 @@ function Explore({
       if (cameraTimerRef.current) window.clearTimeout(cameraTimerRef.current);
       controls.enabled = true;
     };
-  }, [globeReady, selected]);
+  }, [globeReady, shown]);
 
   const reset = () => globeRef.current?.pointOfView({ lat: 20, lng: 10, altitude: 2.15 }, 800);
 
@@ -709,19 +752,23 @@ function Explore({
       <div className="explore-filters">
         <div className="filter-search">
           <Search size={16} />
-          <input placeholder="Search the map..." />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search the map..."
+          />
         </div>
-        <FilterSelect value={language} options={languages} onChange={setLanguage} />
-        <FilterSelect value={topic} options={topics} onChange={setTopic} />
+        <FilterSelect value={languageValue} options={languageOptions} onChange={setLanguage} />
+        <FilterSelect value={topicValue} options={topicOptions} onChange={setTopic} />
         <FilterSelect
-          value="Any difficulty"
+          value={difficulty}
           options={["Any difficulty", "Beginner", "Intermediate", "Advanced"]}
-          onChange={() => {}}
+          onChange={setDifficulty}
         />
         <FilterSelect
-          value="Compatibility"
+          value={compatibility}
           options={["Compatibility", "90% and above", "80% and above"]}
-          onChange={() => {}}
+          onChange={setCompatibility}
         />
         <button className="filter-button">
           <SlidersHorizontal size={15} /> More filters
@@ -747,7 +794,7 @@ function Explore({
                   polygonStrokeColor={() => "rgba(92, 157, 145, .18)"}
                   polygonAltitude={0.006}
                   polygonsTransitionDuration={0}
-                  ringsData={[selected]}
+                  ringsData={[shown]}
                   ringLat="lat"
                   ringLng="lng"
                   ringColor={() => (time: number) => `rgba(100, 240, 189, ${(1 - time) * 0.82})`}
@@ -758,7 +805,7 @@ function Explore({
                     if (!globeRef.current) return;
                     configureGlobe(globeRef.current, false);
                     globeRef.current.pointOfView(
-                      { lat: selected.lat, lng: selected.lng, altitude: 1.3 },
+                      { lat: shown.lat, lng: shown.lng, altitude: 1.3 },
                       0,
                     );
                     setGlobeReady(true);
@@ -787,28 +834,28 @@ function Explore({
               <div className="demo-map-note">
                 <CircleDot size={13} /> Location data source shown in repository details
               </div>
-              <div className="map-focus-card" key={selected.id}>
+              <div className="map-focus-card" key={shown.id}>
                 <span className="map-focus-icon">
                   <Globe2 size={15} />
                 </span>
                 <div>
                   <small>VIEWING PROJECT ORIGIN</small>
-                  <strong>{selected.location}</strong>
+                  <strong>{shown.location}</strong>
                   <span>
-                    {selected.owner}/{selected.name} · {selected.locationSource}
+                    {shown.owner}/{shown.name} · {shown.locationSource}
                   </span>
                 </div>
                 <b className="map-coordinates">
-                  {Math.abs(selected.lat).toFixed(2)}°{selected.lat >= 0 ? "N" : "S"}
+                  {Math.abs(shown.lat).toFixed(2)}°{shown.lat >= 0 ? "N" : "S"}
                   <br />
-                  {Math.abs(selected.lng).toFixed(2)}°{selected.lng >= 0 ? "E" : "W"}
+                  {Math.abs(shown.lng).toFixed(2)}°{shown.lng >= 0 ? "E" : "W"}
                 </b>
               </div>
             </>
           ) : (
             <RepositoryList
               repos={filtered}
-              selected={selected}
+              selected={shown}
               onSelect={selectRepo}
               onOpen={openDetail}
             />
@@ -816,7 +863,7 @@ function Explore({
         </section>
         <RecommendedPanel
           repos={filtered}
-          selected={selected}
+          selected={shown}
           onSelect={selectRepo}
           onOpen={openDetail}
         />
@@ -1102,14 +1149,29 @@ function Matches({
   status?: string | null;
 }) {
   const [search, setSearch] = useState("");
+  const [language, setLanguage] = useState("All languages");
+  const [level, setLevel] = useState("All levels");
   const [sort, setSort] = useState("Compatibility");
+  const languageOptions = optionsFrom(repos, (repo) => repo.language, "All languages");
+  const languageValue = languageOptions.includes(language) ? language : "All languages";
   const filtered = repos
-    .filter((r) =>
-      `${r.name} ${r.owner} ${r.language}`.toLowerCase().includes(search.toLowerCase()),
-    )
-    .sort((a, b) =>
-      sort === "Popularity" ? parseFloat(b.stars) - parseFloat(a.stars) : b.match - a.match,
-    );
+    .filter((repo) => {
+      const haystack = `${repo.name} ${repo.owner} ${repo.language}`.toLowerCase();
+      return (
+        haystack.includes(search.toLowerCase()) &&
+        (languageValue === "All languages" || repo.language === languageValue) &&
+        (level === "All levels" || repo.difficulty === level)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "Popularity") return starCount(b.stars) - starCount(a.stars);
+      if (sort === "Activity") return activityRank(b.activity) - activityRank(a.activity);
+      if (sort === "Difficulty") {
+        const order = { Beginner: 0, Intermediate: 1, Advanced: 2 };
+        return order[a.difficulty] - order[b.difficulty] || b.match - a.match;
+      }
+      return b.match - a.match;
+    });
   return (
     <main className="content-page">
       <PageHeader
@@ -1129,11 +1191,11 @@ function Matches({
             placeholder="Search your matches..."
           />
         </div>
-        <FilterSelect value="All languages" options={languages} onChange={() => {}} />
+        <FilterSelect value={languageValue} options={languageOptions} onChange={setLanguage} />
         <FilterSelect
-          value="All levels"
+          value={level}
           options={["All levels", "Beginner", "Intermediate", "Advanced"]}
-          onChange={() => {}}
+          onChange={setLevel}
         />
         <span className="toolbar-spacer" />
         <span className="sort-label">SORT BY</span>
