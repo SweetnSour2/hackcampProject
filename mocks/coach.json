@@ -1,6 +1,0 @@
-{
-  "walkthrough_md": "## Set up\n...\n## Files to look at\n...\n## Approach (hints)\n...\n## PR checklist\n...",
-  "ai_policy_note": null,
-  "files_read": ["README.md", "CONTRIBUTING.md", "docs/cli.md"],
-  "tool_calls": 5
-}
