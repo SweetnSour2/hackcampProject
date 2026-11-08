@@ -25,6 +25,13 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+MIGRATIONS = [
+    "ALTER TABLE repo ADD COLUMN IF NOT EXISTS forks INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE repo ADD COLUMN IF NOT EXISTS level VARCHAR",
+    "ALTER TABLE repo ADD COLUMN IF NOT EXISTS summary VARCHAR",
+    "ALTER TABLE issue ADD COLUMN IF NOT EXISTS body_preview VARCHAR NOT NULL DEFAULT ''",
+]
+
 HYPERTABLES = [
     "SELECT create_hypertable('reposnapshot', by_range('time'), if_not_exists => TRUE)",
     "SELECT create_hypertable('issueevent', by_range('time'), if_not_exists => TRUE)",
@@ -52,6 +59,8 @@ CONTINUOUS_AGGREGATES = [
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        for stmt in MIGRATIONS:
+            await conn.execute(text(stmt))
         for stmt in HYPERTABLES:
             await conn.execute(text(stmt))
 

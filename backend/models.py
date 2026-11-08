@@ -14,11 +14,14 @@ class Repo(SQLModel, table=True):
     languages: dict = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
     topics: list[str] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
     stars: int
+    forks: int = 0
     license_key: str | None = None
     default_branch: str
     pushed_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     fetched_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     good_first_issue_count: int = 0
+    level: str | None = None
+    summary: str | None = None
 
     issues: list["Issue"] = Relationship(back_populates="repo")
 
@@ -33,6 +36,7 @@ class Issue(SQLModel, table=True):
     html_url: str
     labels: list[str] = Field(default_factory=list, sa_column=Column(JSONB, nullable=False))
     comments: int = 0
+    body_preview: str = ""
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     difficulty: str | None = None
