@@ -9,7 +9,7 @@
       "name": "Python",
       "proficiency": 4,
       "description": "Main language across 9 recent repos, mostly FastAPI backends",
-      "source": "both",
+      "source": "github",
       "edited_by_user": false
     },
     {
@@ -23,7 +23,7 @@
       "name": "FastAPI",
       "proficiency": 4,
       "description": "Backend framework in most recent projects",
-      "source": "both",
+      "source": "github",
       "edited_by_user": false
     },
     {
@@ -44,8 +44,11 @@
         "language": "Python",
         "topics": ["python", "fastapi", "cli"],
         "stars": 2400,
+        "forks": 310,
         "pushed_at": "2026-11-05T18:22:10Z",
-        "location": { "name": "Berlin, Germany", "lat": 52.52, "lng": 13.4 }
+        "location": { "name": "Berlin, Germany", "lat": 52.52, "lng": 13.4, "source": "organization" },
+        "level": "beginner",
+        "summary": "A command-line tool for cleaning and converting config files, with a plugin system for new formats."
       },
       "activity": {
         "new_beginner_issues_24h": 2,
@@ -55,7 +58,7 @@
       "score": 0.82,
       "score_breakdown": { "skill_fit": 0.9, "beginner": 0.8, "activity": 1.0 },
       "matched_skills": ["Python", "FastAPI"],
-      "level": "beginner",
+      "learn_skills": ["Click", "pytest"],
       "reason": "Uses FastAPI the way your projects do, and has 4 open beginner issues.",
       "issues": [
         {
@@ -87,8 +90,11 @@
         "language": "TypeScript",
         "topics": ["react", "typescript", "components"],
         "stars": 5100,
+        "forks": 640,
         "pushed_at": "2026-11-06T09:02:44Z",
-        "location": { "name": "San Francisco, CA", "lat": 37.77, "lng": -122.42 }
+        "location": { "name": "San Francisco, CA", "lat": 37.77, "lng": -122.42, "source": "user" },
+        "level": "intermediate",
+        "summary": "A library of accessible, unstyled React components used as the base for design systems."
       },
       "activity": {
         "new_beginner_issues_24h": 0,
@@ -98,7 +104,7 @@
       "score": 0.61,
       "score_breakdown": { "skill_fit": 0.5, "beginner": 1.0, "activity": 1.0 },
       "matched_skills": ["TypeScript", "React"],
-      "level": "intermediate",
+      "learn_skills": ["Accessibility", "Storybook"],
       "reason": "A good way to grow your React skills, with plenty of small component fixes.",
       "issues": [
         {
@@ -121,8 +127,11 @@
         "language": "Python",
         "topics": ["python", "csv", "data"],
         "stars": 860,
+        "forks": 54,
         "pushed_at": "2026-09-28T20:15:00Z",
-        "location": null
+        "location": null,
+        "level": null,
+        "summary": null
       },
       "activity": {
         "new_beginner_issues_24h": 1,
@@ -132,7 +141,7 @@
       "score": 0.47,
       "score_breakdown": { "skill_fit": 0.4, "beginner": 0.6, "activity": 0.5 },
       "matched_skills": ["Python"],
-      "level": "beginner",
+      "learn_skills": ["pandas"],
       "reason": "Small Python codebase where your scripting experience transfers directly.",
       "issues": [
         {

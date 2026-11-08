@@ -6,7 +6,7 @@
       "name": "Python",
       "proficiency": 4,
       "description": "Main language across 9 recent repos, mostly FastAPI backends",
-      "source": "both",
+      "source": "github",
       "edited_by_user": false
     },
     {
@@ -20,7 +20,7 @@
       "name": "FastAPI",
       "proficiency": 4,
       "description": "Backend framework in most recent projects",
-      "source": "both",
+      "source": "github",
       "edited_by_user": false
     },
     {
