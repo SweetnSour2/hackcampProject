@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -93,6 +94,34 @@ async def get_good_first_issues(full_name: str, per_page: int = 30) -> list[dict
         },
     )
     return [item for item in resp.json() if "pull_request" not in item]
+
+
+async def get_user(username: str) -> dict:
+    resp = await _get(f"/users/{username}")
+    return resp.json()
+
+
+async def get_user_repos(username: str, limit: int = 20) -> list[dict]:
+    resp = await _get(
+        f"/users/{username}/repos",
+        {"type": "owner", "sort": "pushed", "per_page": 100},
+    )
+    owned = [repo for repo in resp.json() if not repo.get("fork")]
+    return owned[:limit]
+
+
+async def get_file_text(full_name: str, path: str) -> str | None:
+    try:
+        resp = await _get(f"/repos/{full_name}/contents/{path}")
+    except GitHubNotFound:
+        return None
+    data = resp.json()
+    if isinstance(data, list) or data.get("type") != "file":
+        return None
+    encoded = data.get("content")
+    if not encoded:
+        return None
+    return base64.b64decode(encoded).decode("utf-8", errors="replace")
 
 
 async def get_rate_limit() -> dict:

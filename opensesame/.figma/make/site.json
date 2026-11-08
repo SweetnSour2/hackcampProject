@@ -1,0 +1,11 @@
+{
+  "title": "OpenSesame — Open source, unlocked.",
+  "description": "Discover GitHub repositories and contribution opportunities tailored to your skills, with transparent match insights that help developers find where to contribute.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

@@ -37,6 +37,7 @@ async def upsert_repo(
         "languages": languages,
         "topics": data.get("topics") or [],
         "stars": data["stargazers_count"],
+        "forks": data.get("forks_count", 0),
         "license_key": (data.get("license") or {}).get("key"),
         "default_branch": data["default_branch"],
         "pushed_at": _parse_time(data["pushed_at"]),
@@ -69,6 +70,7 @@ async def sync_issues(
             "html_url": item["html_url"],
             "labels": [label["name"] for label in item.get("labels", [])],
             "comments": item.get("comments", 0),
+            "body_preview": " ".join((item.get("body") or "").split())[:300],
             "created_at": _parse_time(item["created_at"]),
             "updated_at": _parse_time(item["updated_at"]),
         }
