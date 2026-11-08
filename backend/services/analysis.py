@@ -24,7 +24,6 @@ async def save_skills(session: AsyncSession, user: User, skills: list[SkillOut])
                 proficiency=item.proficiency,
                 description=item.description,
                 source="github",
-                edited_by_user=False,
             )
         )
     user.skills_updated_at = datetime.now(timezone.utc)
