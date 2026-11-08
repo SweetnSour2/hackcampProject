@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ==========================================================================
+   Design Tokens & Theme Variables (OpenSesame Theme)
+   ========================================================================== */
+:root {
+  --bg-canvas: #090d10;
+  --bg-surface: #10161c;
+  --bg-surface-elevated: #151d24;
+  --border-subtle: #1c2630;
+  --border-active: #283745;
+  
+  --accent-mint: #56e39f;
+  --accent-mint-hover: #45d18e;
+  --accent-mint-glow: rgba(86, 227, 159, 0.22);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #8d9aa7;
+  --text-muted: #576574;
+  --text-dark: #071710;
+
+  --error-bg: rgba(239, 68, 68, 0.12);
+  --error-border: rgba(239, 68, 68, 0.3);
+  --error-text: #f87171;
+}
+
+/* ==========================================================================
+   Base Layout & Cosmic Background
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  
+  /* Ambient glowing orb effect inspired by the 3D globe in the screenshot */
+  background-image: 
+    radial-gradient(circle at 50% 105%, var(--accent-mint-glow) 0%, transparent 45%),
+    radial-gradient(circle at 50% -20%, rgba(30, 41, 59, 0.4) 0%, transparent 60%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* ==========================================================================
+   Main App Container (Automatically wraps the fragment contents)
+   ========================================================================== */
+#root {
+  width: 100%;
+  max-width: 460px;
+  margin: 1.5rem;
+  padding: 2.5rem 2rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 24px;
+  box-shadow: 
+    0 20px 45px -10px rgba(0, 0, 0, 0.7),
+    0 0 1px 1px rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  backdrop-filter: blur(16px);
+  animation: fadeIn 0.35s ease-out;
+}
+
+/* OpenSesame Brand Mark at top of card */
+#root::before {
+  content: 'OpenSesame';
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
+h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+p {
+  color: var(--text-secondary);
+  font-size: 0.925rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+/* Logged-in user badge styling */
+p:first-of-type:not(:only-of-type) {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+/* Error message notice */
+p:has(> b), 
+p:first-of-type:not(:last-child) {
+  /* Targets error notification if present */
+  border-color: var(--error-border);
+}
+
+/* ==========================================================================
+   Code / JSON User Profile View
+   ========================================================================== */
+pre {
+  width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: #090d11;
+  color: #79c0ff; /* Subtle dev blue/mint highlighting */
+  padding: 1.15rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+
+/* ==========================================================================
+   Action Buttons
+   ========================================================================== */
+button {
+  width: 100%;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 9999px; /* OpenSesame Pill-Style */
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  margin-top: 0.65rem;
+}
+
+/* Primary Button (Signup / Main CTA) */
+button:first-of-type {
+  background-color: var(--accent-mint);
+  color: var(--text-dark);
+  box-shadow: 0 4px 20px var(--accent-mint-glow);
+}
+
+button:first-of-type:hover {
+  background-color: var(--accent-mint-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(86, 227, 159, 0.35);
+}
+
+/* Secondary Button (Login / Logout outline) */
+button:nth-of-type(2),
+#root > button:last-of-type:not(:only-of-type) {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
+}
+
+button:nth-of-type(2):hover,
+#root > button:last-of-type:not(:only-of-type):hover {
+  background-color: #1a232c;
+  border-color: var(--border-active);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: scale(0.985);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+#root:has(> :not(*)) {
+  /* Fallback text loader when isLoading is true */
+  color: var(--accent-mint);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 3rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

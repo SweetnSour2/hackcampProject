@@ -1,0 +1,1 @@
+npm install @auth0/auth0-react@%SDK_VERSION%
