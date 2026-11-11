@@ -9,29 +9,25 @@
       "name": "Python",
       "proficiency": 4,
       "description": "Main language across 9 recent repos, mostly FastAPI backends",
-      "source": "github",
-      "edited_by_user": false
+      "source": "github"
     },
     {
       "name": "TypeScript",
       "proficiency": 2,
       "description": "Used in 2 frontends",
-      "source": "github",
-      "edited_by_user": false
+      "source": "github"
     },
     {
       "name": "FastAPI",
       "proficiency": 4,
       "description": "Backend framework in most recent projects",
-      "source": "github",
-      "edited_by_user": false
+      "source": "github"
     },
     {
       "name": "React",
       "proficiency": 2,
       "description": "Used in 2 frontends",
-      "source": "github",
-      "edited_by_user": false
+      "source": "github"
     }
   ],
   "matches": [

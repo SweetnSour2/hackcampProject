@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.db import init_db
-from routers import health, refresh
+from routers import coach, health, matches, refresh
 from services import github
 
 
@@ -28,3 +28,5 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(refresh.router)
+app.include_router(matches.router)
+app.include_router(coach.router)

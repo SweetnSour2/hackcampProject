@@ -110,6 +110,22 @@ async def get_user_repos(username: str, limit: int = 20) -> list[dict]:
     return owned[:limit]
 
 
+async def get_issue(full_name: str, number: int) -> dict:
+    resp = await _get(f"/repos/{full_name}/issues/{number}")
+    data = resp.json()
+    if "pull_request" in data:
+        raise GitHubNotFound(f"/repos/{full_name}/issues/{number}")
+    return data
+
+
+async def get_issue_comments(full_name: str, number: int, per_page: int = 20) -> list[dict]:
+    resp = await _get(
+        f"/repos/{full_name}/issues/{number}/comments",
+        {"per_page": per_page},
+    )
+    return resp.json()
+
+
 async def get_file_text(full_name: str, path: str) -> str | None:
     try:
         resp = await _get(f"/repos/{full_name}/contents/{path}")

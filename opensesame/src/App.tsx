@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import { feature } from "topojson-client";
@@ -37,7 +38,14 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { languages, repositories, topics, type Repository } from "./data";
+import { repositories as demoRepos, type Repository } from "./data";
+import {
+  fetchCoach,
+  fetchMatches,
+  githubUsername,
+  toRepository,
+  type Skill,
+} from "./api";
 
 const worldTopology = worldAtlas as unknown as Topology;
 const worldCountries = (
@@ -127,7 +135,7 @@ const nav = [
   { id: "profile" as Page, label: "Profile", icon: UserRound },
 ];
 
-const avatarUrl = "https://avatars.githubusercontent.com/u/583231?v=4";
+const fallbackAvatar = "https://avatars.githubusercontent.com/u/583231?v=4";
 
 function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -145,8 +153,16 @@ function Logo({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function Avatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  return <img className={`avatar avatar-${size}`} src={avatarUrl} alt="GitHub profile avatar" />;
+function Avatar({
+  size = "md",
+  src = fallbackAvatar,
+}: {
+  size?: "sm" | "md" | "lg";
+  src?: string;
+}) {
+  return (
+    <img className={`avatar avatar-${size}`} src={src} alt="GitHub profile avatar" />
+  );
 }
 
 function Button({
@@ -167,7 +183,15 @@ function Button({
   );
 }
 
-function Landing({ onDemo, onExplore }: { onDemo: () => void; onExplore: () => void }) {
+function Landing({
+  onLogin,
+  onExplore,
+  authError,
+}: {
+  onLogin: () => void;
+  onExplore: () => void;
+  authError?: string;
+}) {
   return (
     <main className="landing">
       <header className="landing-nav">
@@ -175,9 +199,8 @@ function Landing({ onDemo, onExplore }: { onDemo: () => void; onExplore: () => v
         <div className="landing-links">
           <button onClick={onExplore}>Explore projects</button>
           <button>How it works</button>
-          <span className="demo-badge">Demo data</span>
         </div>
-        <Button onClick={onDemo}>
+        <Button onClick={onLogin}>
           <Github size={16} /> Connect GitHub
         </Button>
       </header>
@@ -197,7 +220,8 @@ function Landing({ onDemo, onExplore }: { onDemo: () => void; onExplore: () => v
             turn your experience into impact.
           </p>
           <div className="hero-actions">
-            <Button onClick={onDemo}>
+            {authError && <p className="hero-note">{authError}</p>}
+            <Button onClick={onLogin}>
               <Github size={18} /> Connect GitHub <ArrowRight size={16} />
             </Button>
             <Button variant="secondary" onClick={onExplore}>
@@ -281,7 +305,7 @@ function HeroGlobe() {
         polygonStrokeColor={() => "rgba(84, 159, 143, .2)"}
         polygonAltitude={0.006}
         polygonsTransitionDuration={0}
-        ringsData={[repositories[0]]}
+        ringsData={[demoRepos[0]]}
         ringLat="lat"
         ringLng="lng"
         ringColor={() => (time: number) => `rgba(100, 240, 189, ${(1 - time) * 0.7})`}
@@ -432,11 +456,19 @@ function Sidebar({
   collapsed,
   setCollapsed,
   navigate,
+  username,
+  avatar,
+  matchCount,
+  onLogout,
 }: {
   page: Page;
   collapsed: boolean;
   setCollapsed: (x: boolean) => void;
   navigate: (p: Page) => void;
+  username: string;
+  avatar: string;
+  matchCount: number;
+  onLogout: () => void;
 }) {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
@@ -457,25 +489,37 @@ function Sidebar({
           >
             <Icon size={18} />
             {!collapsed && <span>{label}</span>}
-            {id === "matches" && !collapsed && <i>6</i>}
+            {id === "matches" && !collapsed && <i>{matchCount}</i>}
           </button>
         ))}
       </nav>
       <div className="sidebar-profile">
-        <Avatar />
+        <Avatar src={avatar} />
         {!collapsed && (
           <div>
-            <strong>alexchen</strong>
+            <strong>{username}</strong>
             <span>Connected</span>
           </div>
         )}
-        {!collapsed && <ChevronRight size={15} />}
+        {!collapsed && (
+          <button aria-label="Log out" onClick={onLogout}>
+            <ChevronRight size={15} />
+          </button>
+        )}
       </div>
     </aside>
   );
 }
 
-function Topbar({ page, navigate }: { page: Page; navigate: (p: Page) => void }) {
+function Topbar({
+  page,
+  navigate,
+  avatar,
+}: {
+  page: Page;
+  navigate: (p: Page) => void;
+  avatar: string;
+}) {
   const title = page === "detail" ? "Repository" : page.charAt(0).toUpperCase() + page.slice(1);
   return (
     <header className="topbar">
@@ -499,7 +543,7 @@ function Topbar({ page, navigate }: { page: Page; navigate: (p: Page) => void })
         <button aria-label="Settings">
           <Settings2 size={17} />
         </button>
-        <Avatar size="sm" />
+        <Avatar size="sm" src={avatar} />
       </div>
     </header>
   );
@@ -509,17 +553,34 @@ function Shell({
   children,
   page,
   navigate,
+  username,
+  avatar,
+  matchCount,
+  onLogout,
 }: {
   children: React.ReactNode;
   page: Page;
   navigate: (p: Page) => void;
+  username: string;
+  avatar: string;
+  matchCount: number;
+  onLogout: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
     <div className="app-shell">
-      <Sidebar page={page} collapsed={collapsed} setCollapsed={setCollapsed} navigate={navigate} />
+      <Sidebar
+        page={page}
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        navigate={navigate}
+        username={username}
+        avatar={avatar}
+        matchCount={matchCount}
+        onLogout={onLogout}
+      />
       <div className="app-column">
-        <Topbar page={page} navigate={navigate} />
+        <Topbar page={page} navigate={navigate} avatar={avatar} />
         {children}
       </div>
     </div>
@@ -549,6 +610,36 @@ function PageHeader({
   );
 }
 
+function optionsFrom(repos: Repository[], pick: (repo: Repository) => string, all: string) {
+  return [all, ...Array.from(new Set(repos.map(pick).filter(Boolean))).sort()];
+}
+
+function passesCompatibility(match: number, filter: string) {
+  if (filter === "90% and above") return match >= 90;
+  if (filter === "80% and above") return match >= 80;
+  return true;
+}
+
+function starCount(stars: string) {
+  const value = stars.trim().toLowerCase();
+  if (value.endsWith("k")) return parseFloat(value) * 1000;
+  return parseFloat(value) || 0;
+}
+
+function activityRank(activity: string) {
+  const picked = activity.match(/(\d+) picked up/);
+  if (picked) return 10000 + Number(picked[1]);
+  const fresh = activity.match(/(\d+) new beginner/);
+  if (fresh) return 5000 + Number(fresh[1]);
+  const gained = activity.match(/\+(\d+) stars/);
+  if (gained) return 1000 + Number(gained[1]);
+  if (activity.includes("today")) return 100;
+  if (activity.includes("yesterday")) return 50;
+  const days = activity.match(/Pushed (\d+)d ago/);
+  if (days) return Math.max(0, 40 - Number(days[1]));
+  return 0;
+}
+
 function FilterSelect({
   value,
   options,
@@ -571,10 +662,12 @@ function FilterSelect({
 }
 
 function Explore({
+  repos,
   selected,
   selectRepo,
   openDetail,
 }: {
+  repos: Repository[];
   selected: Repository;
   selectRepo: (r: Repository) => void;
   openDetail: (r: Repository) => void;
@@ -584,8 +677,11 @@ function Explore({
   const cameraTimerRef = useRef<number | null>(null);
   const size = useElementSize(wrapRef, { width: 760, height: 620 });
   const [globeReady, setGlobeReady] = useState(false);
+  const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("All languages");
   const [topic, setTopic] = useState("All topics");
+  const [difficulty, setDifficulty] = useState("Any difficulty");
+  const [compatibility, setCompatibility] = useState("Compatibility");
   const [view, setView] = useState<"globe" | "list">("globe");
   const material = useMemo(
     () =>
@@ -597,11 +693,21 @@ function Explore({
       }),
     [],
   );
-  const filtered = repositories.filter(
-    (r) =>
-      (language === "All languages" || r.language === language) &&
-      (topic === "All topics" || r.topic === topic),
-  );
+  const languageOptions = optionsFrom(repos, (repo) => repo.language, "All languages");
+  const topicOptions = optionsFrom(repos, (repo) => repo.topic, "All topics");
+  const languageValue = languageOptions.includes(language) ? language : "All languages";
+  const topicValue = topicOptions.includes(topic) ? topic : "All topics";
+  const filtered = repos.filter((repo) => {
+    const haystack = `${repo.name} ${repo.owner} ${repo.language} ${repo.topic}`.toLowerCase();
+    return (
+      haystack.includes(query.toLowerCase()) &&
+      (languageValue === "All languages" || repo.language === languageValue) &&
+      (topicValue === "All topics" || repo.topic === topicValue) &&
+      (difficulty === "Any difficulty" || repo.difficulty === difficulty) &&
+      passesCompatibility(repo.match, compatibility)
+    );
+  });
+  const shown = filtered.find((repo) => repo.id === selected.id) ?? filtered[0] ?? selected;
   useEffect(() => () => material.dispose(), [material]);
 
   useEffect(() => {
@@ -612,7 +718,7 @@ function Explore({
     if (cameraTimerRef.current) window.clearTimeout(cameraTimerRef.current);
     const controls = globe.controls();
     controls.enabled = false;
-    globe.pointOfView({ lat: selected.lat, lng: selected.lng, altitude: 1.3 }, 1250);
+    globe.pointOfView({ lat: shown.lat, lng: shown.lng, altitude: 1.3 }, 1250);
     cameraTimerRef.current = window.setTimeout(() => {
       controls.enabled = true;
       cameraTimerRef.current = null;
@@ -622,7 +728,7 @@ function Explore({
       if (cameraTimerRef.current) window.clearTimeout(cameraTimerRef.current);
       controls.enabled = true;
     };
-  }, [globeReady, selected]);
+  }, [globeReady, shown]);
 
   const reset = () => globeRef.current?.pointOfView({ lat: 20, lng: 10, altitude: 2.15 }, 800);
 
@@ -646,19 +752,23 @@ function Explore({
       <div className="explore-filters">
         <div className="filter-search">
           <Search size={16} />
-          <input placeholder="Search the map..." />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search the map..."
+          />
         </div>
-        <FilterSelect value={language} options={languages} onChange={setLanguage} />
-        <FilterSelect value={topic} options={topics} onChange={setTopic} />
+        <FilterSelect value={languageValue} options={languageOptions} onChange={setLanguage} />
+        <FilterSelect value={topicValue} options={topicOptions} onChange={setTopic} />
         <FilterSelect
-          value="Any difficulty"
+          value={difficulty}
           options={["Any difficulty", "Beginner", "Intermediate", "Advanced"]}
-          onChange={() => {}}
+          onChange={setDifficulty}
         />
         <FilterSelect
-          value="Compatibility"
+          value={compatibility}
           options={["Compatibility", "90% and above", "80% and above"]}
-          onChange={() => {}}
+          onChange={setCompatibility}
         />
         <button className="filter-button">
           <SlidersHorizontal size={15} /> More filters
@@ -684,7 +794,7 @@ function Explore({
                   polygonStrokeColor={() => "rgba(92, 157, 145, .18)"}
                   polygonAltitude={0.006}
                   polygonsTransitionDuration={0}
-                  ringsData={[selected]}
+                  ringsData={[shown]}
                   ringLat="lat"
                   ringLng="lng"
                   ringColor={() => (time: number) => `rgba(100, 240, 189, ${(1 - time) * 0.82})`}
@@ -695,7 +805,7 @@ function Explore({
                     if (!globeRef.current) return;
                     configureGlobe(globeRef.current, false);
                     globeRef.current.pointOfView(
-                      { lat: selected.lat, lng: selected.lng, altitude: 1.3 },
+                      { lat: shown.lat, lng: shown.lng, altitude: 1.3 },
                       0,
                     );
                     setGlobeReady(true);
@@ -724,28 +834,28 @@ function Explore({
               <div className="demo-map-note">
                 <CircleDot size={13} /> Location data source shown in repository details
               </div>
-              <div className="map-focus-card" key={selected.id}>
+              <div className="map-focus-card" key={shown.id}>
                 <span className="map-focus-icon">
                   <Globe2 size={15} />
                 </span>
                 <div>
                   <small>VIEWING PROJECT ORIGIN</small>
-                  <strong>{selected.location}</strong>
+                  <strong>{shown.location}</strong>
                   <span>
-                    {selected.owner}/{selected.name} · {selected.locationSource}
+                    {shown.owner}/{shown.name} · {shown.locationSource}
                   </span>
                 </div>
                 <b className="map-coordinates">
-                  {Math.abs(selected.lat).toFixed(2)}°{selected.lat >= 0 ? "N" : "S"}
+                  {Math.abs(shown.lat).toFixed(2)}°{shown.lat >= 0 ? "N" : "S"}
                   <br />
-                  {Math.abs(selected.lng).toFixed(2)}°{selected.lng >= 0 ? "E" : "W"}
+                  {Math.abs(shown.lng).toFixed(2)}°{shown.lng >= 0 ? "E" : "W"}
                 </b>
               </div>
             </>
           ) : (
             <RepositoryList
               repos={filtered}
-              selected={selected}
+              selected={shown}
               onSelect={selectRepo}
               onOpen={openDetail}
             />
@@ -753,7 +863,7 @@ function Explore({
         </section>
         <RecommendedPanel
           repos={filtered}
-          selected={selected}
+          selected={shown}
           onSelect={selectRepo}
           onOpen={openDetail}
         />
@@ -915,16 +1025,35 @@ function RepositoryList({
 function HomePage({
   navigate,
   openDetail,
+  repos,
+  username,
+  avatar,
+  skills,
+  loading,
+  error,
 }: {
   navigate: (p: Page) => void;
   openDetail: (r: Repository) => void;
+  repos: Repository[];
+  username: string;
+  avatar: string;
+  skills: Skill[];
+  loading: boolean;
+  error: string | null;
 }) {
+  const top = repos[0];
   return (
     <main className="content-page">
       <PageHeader
         eyebrow="DEVELOPER COMMAND CENTER"
-        title="Good morning, Alex."
-        copy="Your open-source radar found 6 projects aligned with your profile."
+        title={`Good morning, ${username}.`}
+        copy={
+          loading
+            ? "Reading your GitHub profile and scoring the catalog…"
+            : error
+              ? error
+              : `Your open-source radar found ${repos.length} projects aligned with your profile.`
+        }
       >
         <Button onClick={() => navigate("explore")}>
           <Globe2 size={16} /> Open discovery map
@@ -932,10 +1061,20 @@ function HomePage({
       </PageHeader>
       <div className="metric-grid">
         {[
-          ["96%", "Top compatibility", "calcom/cal.com", KeyRound],
-          ["6", "Fresh matches", "Updated 12 minutes ago", Compass],
-          ["3", "Saved projects", "Ready to revisit", Bookmark],
-          ["1", "Contribution ready", "Beginner-friendly", CheckCircle2],
+          [
+            top ? `${top.match}%` : "—",
+            "Top compatibility",
+            top ? `${top.owner}/${top.name}` : "Waiting on matches",
+            KeyRound,
+          ],
+          [String(repos.length), "Fresh matches", loading ? "Loading" : "From your GitHub skills", Compass],
+          ["—", "Saved projects", "Ready to revisit", Bookmark],
+          [
+            String(repos.filter((r) => r.difficulty === "Beginner").length || repos.length),
+            "Contribution ready",
+            "Beginner-friendly",
+            CheckCircle2,
+          ],
         ].map(([value, label, meta, Icon]) => (
           <article className="metric-card" key={label as string}>
             <div>
@@ -960,24 +1099,24 @@ function HomePage({
               View all <ArrowRight size={14} />
             </button>
           </div>
-          <RepositoryList repos={repositories.slice(0, 3)} onOpen={openDetail} />
+          <RepositoryList repos={repos.slice(0, 3)} onOpen={openDetail} />
         </section>
         <aside className="profile-snapshot">
           <span className="section-label">YOUR PROFILE</span>
           <div className="snapshot-user">
-            <Avatar size="lg" />
+            <Avatar size="lg" src={avatar} />
             <div>
-              <h3>Alex Chen</h3>
-              <p>@alexchen</p>
+              <h3>{username}</h3>
+              <p>@{username}</p>
             </div>
-            <span>82%</span>
+            <span>{top ? `${top.match}%` : "—"}</span>
           </div>
           <p className="inferred">
             <Command size={14} /> Inferred from public GitHub activity
           </p>
           <h4>Primary stack</h4>
           <div className="tag-row">
-            {["TypeScript", "React", "Node.js", "CSS"].map((x) => (
+            {(skills.length ? skills.slice(0, 6).map((s) => s.name) : ["—"]).map((x) => (
               <span key={x}>{x}</span>
             ))}
           </div>
@@ -997,29 +1136,51 @@ function HomePage({
 }
 
 function Matches({
+  repos,
   saved,
   toggleSave,
   openDetail,
+  status,
 }: {
+  repos: Repository[];
   saved: string[];
   toggleSave: (id: string) => void;
   openDetail: (r: Repository) => void;
+  status?: string | null;
 }) {
   const [search, setSearch] = useState("");
+  const [language, setLanguage] = useState("All languages");
+  const [level, setLevel] = useState("All levels");
   const [sort, setSort] = useState("Compatibility");
-  const filtered = repositories
-    .filter((r) =>
-      `${r.name} ${r.owner} ${r.language}`.toLowerCase().includes(search.toLowerCase()),
-    )
-    .sort((a, b) =>
-      sort === "Popularity" ? parseFloat(b.stars) - parseFloat(a.stars) : b.match - a.match,
-    );
+  const languageOptions = optionsFrom(repos, (repo) => repo.language, "All languages");
+  const languageValue = languageOptions.includes(language) ? language : "All languages";
+  const filtered = repos
+    .filter((repo) => {
+      const haystack = `${repo.name} ${repo.owner} ${repo.language}`.toLowerCase();
+      return (
+        haystack.includes(search.toLowerCase()) &&
+        (languageValue === "All languages" || repo.language === languageValue) &&
+        (level === "All levels" || repo.difficulty === level)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "Popularity") return starCount(b.stars) - starCount(a.stars);
+      if (sort === "Activity") return activityRank(b.activity) - activityRank(a.activity);
+      if (sort === "Difficulty") {
+        const order = { Beginner: 0, Intermediate: 1, Advanced: 2 };
+        return order[a.difficulty] - order[b.difficulty] || b.match - a.match;
+      }
+      return b.match - a.match;
+    });
   return (
     <main className="content-page">
       <PageHeader
         eyebrow="PERSONALIZED DISCOVERY"
         title="Your matches"
-        copy="Transparent recommendations based on your selected skills, interests, and experience."
+        copy={
+          status ||
+          "Transparent recommendations based on your selected skills, interests, and experience."
+        }
       />
       <div className="list-toolbar">
         <div className="filter-search wide">
@@ -1030,11 +1191,11 @@ function Matches({
             placeholder="Search your matches..."
           />
         </div>
-        <FilterSelect value="All languages" options={languages} onChange={() => {}} />
+        <FilterSelect value={languageValue} options={languageOptions} onChange={setLanguage} />
         <FilterSelect
-          value="All levels"
+          value={level}
           options={["All levels", "Beginner", "Intermediate", "Advanced"]}
-          onChange={() => {}}
+          onChange={setLevel}
         />
         <span className="toolbar-spacer" />
         <span className="sort-label">SORT BY</span>
@@ -1047,7 +1208,7 @@ function Matches({
       <div className="list-context">
         <span>{filtered.length} repositories</span>
         <span>
-          <CircleDot size={12} /> Scores use demo profile signals
+          <CircleDot size={12} /> Scores from skill fit, beginner issues, recency
         </span>
       </div>
       <RepositoryList repos={filtered} onOpen={openDetail} saved={saved} toggleSave={toggleSave} />
@@ -1056,15 +1217,17 @@ function Matches({
 }
 
 function SavedPage({
+  repos,
   saved,
   toggleSave,
   openDetail,
 }: {
+  repos: Repository[];
   saved: string[];
   toggleSave: (id: string) => void;
   openDetail: (r: Repository) => void;
 }) {
-  const list = repositories.filter((r) => saved.includes(r.id));
+  const list = repos.filter((r) => saved.includes(r.id));
   return (
     <main className="content-page">
       <PageHeader
@@ -1400,36 +1563,99 @@ function ContributorsTab({ repo }: { repo: Repository }) {
   );
 }
 
-function ContributePage({ repo }: { repo: Repository }) {
+function ContributePage({
+  repo,
+  username,
+  status,
+}: {
+  repo: Repository | null;
+  username: string;
+  status?: string | null;
+}) {
   const [done, setDone] = useState([0]);
-  const issue = repo.issues[0];
-  const steps = [
-    [
-      "Understand the issue",
-      "Review the expected behavior, acceptance criteria, and related discussion.",
-    ],
-    [
-      "Read contribution guidelines",
-      `Open ${repo.owner}/${repo.name}’s contribution guide before changing code.`,
-    ],
-    [
-      "Set up the repository",
-      "Fork, clone, install dependencies, and verify the local test suite.",
-    ],
-    [
-      "Implement the contribution",
-      "Keep the change focused and add coverage for affected behavior.",
-    ],
-    ["Submit a pull request", "Explain the approach, testing, and any tradeoffs clearly."],
-  ];
+  const [walkthrough, setWalkthrough] = useState<string | null>(null);
+  const [coachError, setCoachError] = useState<string | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+  const issue = repo?.issues[0];
+  const liveRepo = Boolean(repo && /^\d+$/.test(repo.id));
+  useEffect(() => {
+    if (!issue || !username || !liveRepo) return;
+    let cancelled = false;
+    setCoachLoading(true);
+    setCoachError(null);
+    fetchCoach({
+      username,
+      repo_full_name: `${repo!.owner}/${repo!.name}`,
+      issue_number: issue.number,
+    })
+      .then((data) => {
+        if (!cancelled) setWalkthrough(data.walkthrough_md);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setCoachError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setCoachLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [username, liveRepo, repo?.owner, repo?.name, issue?.number]);
+  const steps = walkthrough
+    ? walkthrough
+        .split(/^## /m)
+        .map((block) => block.trim())
+        .filter(Boolean)
+        .map((block) => {
+          const newline = block.indexOf("\n");
+          const title = (newline === -1 ? block : block.slice(0, newline)).trim();
+          const copy = newline === -1 ? "" : block.slice(newline + 1).trim();
+          return [title, copy] as [string, string];
+        })
+    : [
+        [
+          "Understand the issue",
+          "Review the expected behavior, acceptance criteria, and related discussion.",
+        ],
+        [
+          "Read contribution guidelines",
+          `Open ${repo?.owner ?? "the repo"}/${repo?.name ?? "project"}’s contribution guide before changing code.`,
+        ],
+        [
+          "Set up the repository",
+          "Fork, clone, install dependencies, and verify the local test suite.",
+        ],
+        [
+          "Implement the contribution",
+          "Keep the change focused and add coverage for affected behavior.",
+        ],
+        ["Submit a pull request", "Explain the approach, testing, and any tradeoffs clearly."],
+      ];
   const toggle = (i: number) =>
     setDone((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]));
+  if (!repo || !issue) {
+    return (
+      <main className="content-page contribute-page">
+        <PageHeader
+          eyebrow="CONTRIBUTION WORKSPACE"
+          title={status ? "Coach is waiting" : "Pick a match first"}
+          copy={status || "Open a repository from Matches, then come back here for the walkthrough."}
+        />
+      </main>
+    );
+  }
   return (
     <main className="content-page contribute-page">
       <PageHeader
         eyebrow="CONTRIBUTION WORKSPACE"
         title="Prepare with confidence"
-        copy="A practical path from understanding the issue to opening a focused pull request."
+        copy={
+          coachLoading
+            ? "Reading the issue and docs…"
+            : coachError
+              ? coachError
+              : "A practical path from understanding the issue to opening a focused pull request."
+        }
       >
         <a
           className="btn btn-primary"
@@ -1469,7 +1695,7 @@ function ContributePage({ repo }: { repo: Repository }) {
             <div className="skill-compare">
               <div>
                 <h3>Your Skills</h3>
-                {["JavaScript", "React", "TypeScript", "CSS"].map((x) => (
+                {(repo.skills.length ? repo.skills : ["Your stack"]).map((x) => (
                   <span className="matched" key={x}>
                     <Check size={14} />
                     {x}
@@ -1490,15 +1716,13 @@ function ContributePage({ repo }: { repo: Repository }) {
                 </span>
               </div>
             </div>
-            <p className="readiness-copy">
-              You already have experience with JavaScript and React. This issue may require learning
-              the project’s testing conventions before contributing. This guidance is inferred from
-              issue labels and project structure.
-            </p>
+            <p className="readiness-copy">{repo.why}</p>
           </div>
         </section>
         <aside className="steps-card">
-          <span className="section-label">SUGGESTED NEXT STEPS</span>
+          <span className="section-label">
+            {walkthrough ? "COACH WALKTHROUGH" : "SUGGESTED NEXT STEPS"}
+          </span>
           <div className="steps-list">
             {steps.map(([title, copy], i) => (
               <button
@@ -1524,7 +1748,17 @@ function ContributePage({ repo }: { repo: Repository }) {
   );
 }
 
-function ProfilePage() {
+function ProfilePage({
+  username,
+  avatar,
+  skills,
+  status,
+}: {
+  username: string;
+  avatar: string;
+  skills: Skill[];
+  status?: string | null;
+}) {
   return (
     <main className="content-page">
       <PageHeader
@@ -1539,32 +1773,33 @@ function ProfilePage() {
       <div className="profile-grid">
         <section className="profile-main-card">
           <div className="profile-identity">
-            <Avatar size="lg" />
+            <Avatar size="lg" src={avatar} />
             <div>
-              <h2>Alex Chen</h2>
-              <p>@alexchen · San Francisco, CA</p>
+              <h2>{username}</h2>
+              <p>@{username}</p>
             </div>
             <span className="github-status">
               <span /> GitHub connected
             </span>
           </div>
-          <p className="bio">
-            Frontend engineer interested in developer experience, accessible interfaces, and tools
-            that make complex work feel simple.
-          </p>
+          <p className="bio">Skills inferred from public GitHub repos. Not edited by you.</p>
           <div className="profile-divider" />
-          <span className="section-label">AI-GENERATED DEVELOPER SUMMARY · EDITABLE</span>
+          <span className="section-label">SKILL ANALYSIS</span>
           <p className="summary-copy">
-            Alex’s public activity suggests a product-minded frontend focus with consistent
-            TypeScript and React work. They may be a strong fit for UI infrastructure,
-            documentation, and accessibility-focused issues.
+            {status
+              ? status
+              : skills.length
+                ? skills
+                    .map((s) => `${s.name} (${s.proficiency}/5): ${s.description}`)
+                    .join(" ")
+                : "Sign in to analyze your GitHub profile."}
           </p>
         </section>
         <aside className="profile-details">
           <span className="section-label">PREFERENCES</span>
           <h3>Programming languages</h3>
           <div className="tag-row">
-            {["TypeScript", "JavaScript", "CSS", "Python"].map((x) => (
+            {(skills.length ? skills.map((s) => s.name) : ["—"]).map((x) => (
               <span key={x}>{x}</span>
             ))}
           </div>
@@ -1595,21 +1830,65 @@ function ProfilePage() {
 }
 
 export default function App() {
+  const {
+    isLoading,
+    isAuthenticated,
+    error,
+    loginWithRedirect,
+    logout,
+    user,
+  } = useAuth0();
   const [page, setPage] = useState<Page>("landing");
-  const [selected, setSelected] = useState(repositories[0]);
+  const [repos, setRepos] = useState<Repository[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [selected, setSelected] = useState<Repository>(demoRepos[0]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [matchesLoading, setMatchesLoading] = useState(false);
   const [saved, setSaved] = useState<string[]>(() => {
     try {
-      return JSON.parse(
-        localStorage.getItem("opensesame-saved") || '["cal","appwrite","mattermost"]',
-      );
+      return JSON.parse(localStorage.getItem("opensesame-saved") || "[]");
     } catch {
-      return ["cal"];
+      return [];
     }
   });
+  const githubName = githubUsername(user);
+  const username = githubName || user?.name || "guest";
+  const avatar = user?.picture || fallbackAvatar;
 
   useEffect(() => {
     localStorage.setItem("opensesame-saved", JSON.stringify(saved));
   }, [saved]);
+
+  useEffect(() => {
+    if (isAuthenticated && page === "landing") setPage("home");
+  }, [isAuthenticated, page]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !githubName) return;
+    let cancelled = false;
+    setMatchesLoading(true);
+    setLoadError(null);
+    setRepos([]);
+    fetchMatches(githubName)
+      .then((data) => {
+        if (cancelled) return;
+        const mapped = data.matches.map(toRepository);
+        setRepos(mapped);
+        setSkills(data.skills);
+        if (mapped[0]) setSelected(mapped[0]);
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        setLoadError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setMatchesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, githubName]);
+
   const navigate = (p: Page) => {
     setPage(p);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1620,28 +1899,113 @@ export default function App() {
   };
   const toggleSave = (id: string) =>
     setSaved((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const visibleRepos = isAuthenticated ? repos : demoRepos;
+  const visibleSelected = isAuthenticated
+    ? (repos.find((repo) => repo.id === selected.id) ?? repos[0] ?? null)
+    : selected;
+  const matchStatus = matchesLoading
+    ? "Scoring your GitHub profile…"
+    : loadError;
+
+  if (isLoading) {
+    return (
+      <main className="landing">
+        <Logo />
+        <p className="hero-note">Connecting…</p>
+      </main>
+    );
+  }
 
   if (page === "landing")
-    return <Landing onDemo={() => navigate("onboarding")} onExplore={() => navigate("explore")} />;
+    return (
+      <Landing
+        onLogin={() =>
+          loginWithRedirect({ authorizationParams: { connection: "github" } })
+        }
+        onExplore={() => navigate("explore")}
+        authError={error?.message}
+      />
+    );
   if (page === "onboarding")
-    return <Onboarding onBack={() => navigate("landing")} onComplete={() => navigate("explore")} />;
+    return <Onboarding onBack={() => navigate("landing")} onComplete={() => navigate("home")} />;
   return (
-    <Shell page={page} navigate={navigate}>
-      {page === "home" && <HomePage navigate={navigate} openDetail={openDetail} />}
-      {page === "explore" && (
-        <Explore selected={selected} selectRepo={setSelected} openDetail={openDetail} />
+    <Shell
+      page={page}
+      navigate={navigate}
+      username={username}
+      avatar={avatar}
+      matchCount={visibleRepos.length}
+      onLogout={() => logout({ logoutParams: { returnTo: `${window.location.origin}/` } })}
+    >
+      {page === "home" && (
+        <HomePage
+          navigate={navigate}
+          openDetail={openDetail}
+          repos={visibleRepos}
+          username={username}
+          avatar={avatar}
+          skills={skills}
+          loading={matchesLoading}
+          error={loadError}
+        />
       )}
+      {page === "explore" &&
+        (visibleSelected ? (
+          <Explore
+            repos={visibleRepos}
+            selected={visibleSelected}
+            selectRepo={setSelected}
+            openDetail={openDetail}
+          />
+        ) : (
+          <main className="content-page">
+            <PageHeader
+              eyebrow="DISCOVERY"
+              title="Matches are still loading"
+              copy={matchStatus || "No scored repositories yet."}
+            />
+          </main>
+        ))}
       {page === "matches" && (
-        <Matches saved={saved} toggleSave={toggleSave} openDetail={openDetail} />
+        <Matches
+          repos={visibleRepos}
+          saved={saved}
+          toggleSave={toggleSave}
+          openDetail={openDetail}
+          status={isAuthenticated ? matchStatus : null}
+        />
       )}
       {page === "saved" && (
-        <SavedPage saved={saved} toggleSave={toggleSave} openDetail={openDetail} />
+        <SavedPage
+          repos={visibleRepos}
+          saved={saved}
+          toggleSave={toggleSave}
+          openDetail={openDetail}
+        />
       )}
-      {page === "detail" && (
-        <DetailPage repo={selected} saved={saved} toggleSave={toggleSave} navigate={navigate} />
+      {page === "detail" && visibleSelected && (
+        <DetailPage
+          repo={visibleSelected}
+          saved={saved}
+          toggleSave={toggleSave}
+          navigate={navigate}
+        />
       )}
-      {page === "contribute" && <ContributePage repo={selected} />}
-      {page === "profile" && <ProfilePage />}
+      {page === "contribute" && (
+        <ContributePage
+          repo={visibleSelected}
+          username={githubName || ""}
+          status={isAuthenticated ? matchStatus : null}
+        />
+      )}
+      {page === "profile" && (
+        <ProfilePage
+          username={username}
+          avatar={avatar}
+          skills={skills}
+          status={isAuthenticated ? matchStatus : null}
+        />
+      )}
     </Shell>
   );
 }
